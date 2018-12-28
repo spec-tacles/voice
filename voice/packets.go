@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"encoding/json"
 	"net"
 	"time"
 )
@@ -23,10 +24,16 @@ const (
 	OpClientDisconnect
 )
 
-// Packet represents a websocket packet
-type Packet struct {
-	OP int         `json:"op"`
-	D  interface{} `json:"d"`
+// SendablePacket represents a sendable WebSocket packet
+type SendablePacket struct {
+	OP   int         `json:"op"`
+	Data interface{} `json:"d"`
+}
+
+// ReceivablePacket represents a receivable WebSocket packet
+type ReceivablePacket struct {
+	OP   int             `json:"op"`
+	Data json.RawMessage `json:"d"`
 }
 
 // IdentifyPayload represents a voice identify payload

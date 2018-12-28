@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"encoding/json"
 	"math/rand"
 	"sync"
 	"time"
@@ -8,7 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Connection represents a voice Websocket connection
+// Connection represents a voice WebSocket connection
 type Connection struct {
 	ws  *websocket.Conn
 	mux sync.RWMutex
@@ -93,7 +94,7 @@ func (c *Connection) SetSpeaking(speaking bool, delay int) error {
 	})
 }
 
-// Resume resumes the websocket session
+// Resume resumes the WebSocket session
 func (c *Connection) Resume() error {
 	return c.Send(OpResume, &ResumePayload{
 		ServerID:  c.ServerID,
@@ -107,9 +108,9 @@ func (c *Connection) Send(op int, d interface{}) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	return c.ws.WriteJSON(&Packet{
-		OP: op,
-		D:  d,
+	return c.ws.WriteJSON(&SendablePacket{
+		OP:   op,
+		Data: d,
 	})
 }
 
@@ -128,15 +129,19 @@ func (c *Connection) listen() {
 	var err error
 
 	for {
-		var d = &Packet{}
-		err = c.ws.ReadJSON(d)
+		rp := &ReceivablePacket{}
+		err = c.ws.ReadJSON(rp)
 		if err != nil {
 			break
 		}
 
-		switch d.OP {
+		switch rp.OP {
 		case OpReady:
-			pk := d.D.(ReadyPayload)
+			pk := &ReadyPayload{}
+			err = json.Unmarshal(rp.Data, pk)
+			if err != nil {
+				return
+			}
 
 			c.SSRC = pk.SSRC
 			c.UDP.Connect(pk.SSRC, pk.IP, pk.Port)
@@ -151,7 +156,12 @@ func (c *Connection) listen() {
 				},
 			})
 		case OpHello:
-			pk := d.D.(HelloPayload)
+			pk := &HelloPayload{}
+			err = json.Unmarshal(rp.Data, pk)
+			if err != nil {
+				return
+			}
+
 			c.HeartbeatInterval = time.Duration(float64(pk.HeartbeatInterval) * .75)
 			go c.heartbeater()
 		case OpHeartbeat:
@@ -159,7 +169,12 @@ func (c *Connection) listen() {
 		case OpHeartbeatAck:
 			c.HeartbeatAcked = true
 		case OpSessionDescription:
-			pk := d.D.(SessionDescriptionPayload)
+			pk := &SessionDescriptionPayload{}
+			err = json.Unmarshal(rp.Data, pk)
+			if err != nil {
+				return
+			}
+
 			c.UDP.SecretKey = pk.SecretKey
 		}
 	}
