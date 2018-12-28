@@ -67,7 +67,7 @@ func (c *Connection) DiscoverIP() (ip net.IP, port uint16, err error) {
 		return
 	}
 
-	ip = net.ParseIP(ipStr[:len(ip)-1])
+	ip = net.ParseIP(ipStr[:len(ipStr)-1])
 	port = binary.LittleEndian.Uint16(sl[len(sl)-2:])
 	return
 }
