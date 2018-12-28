@@ -178,7 +178,7 @@ func (c *Connection) closeHandler(code int, text string) error {
 	switch code {
 	case 4006, 4009:
 		c.SessionID = ""
-		defer c.Reconnect()
+		fallthrough
 	case 4014, 4015:
 		defer c.Reconnect()
 	}
