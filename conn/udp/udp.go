@@ -42,36 +42,34 @@ func (c *Connection) Connect(ssrc uint32, ip net.IP, port uint16) error {
 }
 
 // DiscoverIP discovers our local IP
-func (c *Connection) DiscoverIP() (net.IP, uint16, error) {
+func (c *Connection) DiscoverIP() (ip net.IP, port uint16, err error) {
 	if c.udp == nil {
-		return net.IP{}, 0, errors.New("attempted to discover IP before connecting to UDP")
+		err = errors.New("attempted to discover IP before connecting to UDP")
+		return
 	}
 
 	sl := make([]byte, 70)
 	binary.LittleEndian.PutUint32(sl[:4], c.SSRC)
 
-	_, err := c.udp.Write(sl)
+	_, err = c.udp.Write(sl)
 	if err != nil {
-		return net.IP{}, 0, err
+		return
 	}
 
 	_, err = c.udp.Read(sl)
 	if err != nil {
-		return net.IP{}, 0, err
+		return
 	}
 
 	b := bytes.NewBuffer(sl)
-	ip, err := b.ReadString(0)
+	ipStr, err := b.ReadString(0)
 	if err != nil {
-		return net.IP{}, 0, err
+		return
 	}
 
-	port := binary.LittleEndian.Uint16(sl[len(sl)-2:])
-	if err != nil {
-		return net.IP{}, 0, err
-	}
-
-	return net.ParseIP(ip[:len(ip)-1]), port, nil
+	ip = net.ParseIP(ipStr[:len(ip)-1])
+	port = binary.LittleEndian.Uint16(sl[len(sl)-2:])
+	return
 }
 
 func (c *Connection) Write(b []byte) (int, error) {
