@@ -1,4 +1,4 @@
-package udp
+package voice
 
 import (
 	"bytes"
@@ -10,22 +10,17 @@ import (
 	"golang.org/x/crypto/nacl/secretbox"
 )
 
-// Connection represents a UDP connection
-type Connection struct {
-	udp *net.UDPConn
+// UDP represents a UDP connection
+type UDP struct {
+	conn *net.UDPConn
 
 	SecretKey [32]byte
 	Seq       uint16
 	SSRC      uint32
 }
 
-// New makes a new connection
-func New() *Connection {
-	return &Connection{}
-}
-
 // Connect establishes a UDP connection
-func (c *Connection) Connect(ssrc uint32, ip net.IP, port uint16) error {
+func (u *UDP) Connect(ssrc uint32, ip net.IP, port uint16) error {
 	addr := &net.UDPAddr{
 		IP:   ip,
 		Port: int(port),
@@ -36,27 +31,27 @@ func (c *Connection) Connect(ssrc uint32, ip net.IP, port uint16) error {
 		return err
 	}
 
-	c.SSRC = ssrc
-	c.udp = conn
+	u.SSRC = ssrc
+	u.conn = conn
 	return nil
 }
 
 // DiscoverIP discovers our local IP
-func (c *Connection) DiscoverIP() (ip net.IP, port uint16, err error) {
-	if c.udp == nil {
+func (u *UDP) DiscoverIP() (ip net.IP, port uint16, err error) {
+	if u.conn == nil {
 		err = errors.New("attempted to discover IP before connecting to UDP")
 		return
 	}
 
 	sl := make([]byte, 70)
-	binary.LittleEndian.PutUint32(sl[:4], c.SSRC)
+	binary.LittleEndian.PutUint32(sl[:4], u.SSRC)
 
-	_, err = c.udp.Write(sl)
+	_, err = u.conn.Write(sl)
 	if err != nil {
 		return
 	}
 
-	_, err = c.udp.Read(sl)
+	_, err = u.conn.Read(sl)
 	if err != nil {
 		return
 	}
@@ -72,19 +67,19 @@ func (c *Connection) DiscoverIP() (ip net.IP, port uint16, err error) {
 	return
 }
 
-func (c *Connection) Write(b []byte) (int, error) {
+func (u *UDP) Write(b []byte) (int, error) {
 	var (
-		h  = c.generateHeader()
+		h  = u.generateHeader()
 		pk = []byte{}
 	)
 
-	c.Seq++
-	secretbox.Seal(pk, b, &h, &c.SecretKey)
-	return c.udp.Write(pk)
+	u.Seq++
+	secretbox.Seal(pk, b, &h, &u.SecretKey)
+	return u.conn.Write(pk)
 }
 
-func (c *Connection) generateHeader() [24]byte {
-	if c.SSRC == 0 {
+func (u *UDP) generateHeader() [24]byte {
+	if u.SSRC == 0 {
 		panic("attempted to generate packet header before SSRC was available")
 	}
 
@@ -93,12 +88,12 @@ func (c *Connection) generateHeader() [24]byte {
 		off = 2
 	)
 
-	binary.BigEndian.PutUint16(b[off:], c.Seq)
+	binary.BigEndian.PutUint16(b[off:], u.Seq)
 	off += 2
 
 	binary.BigEndian.PutUint32(b[off:], uint32(time.Now().Unix()))
 	off += 4
 
-	binary.BigEndian.PutUint32(b[off:], c.SSRC)
+	binary.BigEndian.PutUint32(b[off:], u.SSRC)
 	return b
 }

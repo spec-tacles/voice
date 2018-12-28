@@ -1,4 +1,4 @@
-package conn
+package voice
 
 import (
 	"math/rand"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/spec-tacles/voice/conn/udp"
 )
 
 // Connection represents a voice Websocket connection
@@ -14,7 +13,7 @@ type Connection struct {
 	ws  *websocket.Conn
 	mux sync.RWMutex
 
-	UDP       *udp.Connection
+	UDP       *UDP
 	ServerID  uint64
 	UserID    uint64
 	SessionID string
@@ -29,7 +28,7 @@ type Connection struct {
 func New() *Connection {
 	return &Connection{
 		mux: sync.RWMutex{},
-		UDP: udp.New(),
+		UDP: &UDP{},
 	}
 }
 
@@ -177,14 +176,10 @@ func (c *Connection) heartbeater() {
 
 func (c *Connection) closeHandler(code int, text string) error {
 	switch code {
-	case 4009:
-		fallthrough
-	case 4006:
+	case 4006, 4009:
 		c.SessionID = ""
 		defer c.Reconnect()
-	case 4014:
-		fallthrough
-	case 4015:
+	case 4014, 4015:
 		defer c.Reconnect()
 	}
 
