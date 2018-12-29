@@ -4,10 +4,19 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
-	"time"
 
 	"golang.org/x/crypto/nacl/secretbox"
+)
+
+// Audio constants
+const (
+	Channels      = 2
+	FrameSize     = 960
+	SampleRate    = 48000
+	MaxBytes      = FrameSize * 4
+	FrameDuration = FrameSize / (SampleRate / 1000)
 )
 
 // UDP represents a UDP connection
@@ -16,6 +25,7 @@ type UDP struct {
 
 	SecretKey [32]byte
 	Seq       uint16
+	TS        uint32
 	SSRC      uint32
 }
 
@@ -56,26 +66,20 @@ func (u *UDP) DiscoverIP() (ip net.IP, port uint16, err error) {
 		return
 	}
 
-	b := bytes.NewBuffer(sl)
-	ipStr, err := b.ReadString(0)
-	if err != nil {
-		return
-	}
-
-	ip = net.ParseIP(ipStr[:len(ipStr)-1])
-	port = binary.LittleEndian.Uint16(sl[len(sl)-2:])
+	ipSpace := sl[4:68]
+	ip = net.ParseIP(string(ipSpace[:bytes.IndexByte(ipSpace, 0)]))
+	port = binary.LittleEndian.Uint16(sl[68:])
 	return
 }
 
 func (u *UDP) Write(b []byte) (int, error) {
-	var (
-		h  = u.generateHeader()
-		pk = []byte{}
-	)
+	h := u.generateHeader()
 
 	u.Seq++
-	secretbox.Seal(pk, b, &h, &u.SecretKey)
-	return u.conn.Write(pk)
+	u.TS += FrameSize
+	sealed := secretbox.Seal(h[:12], b, &h, &u.SecretKey)
+	fmt.Println(len(sealed))
+	return u.conn.Write(sealed)
 }
 
 func (u *UDP) generateHeader() [24]byte {
@@ -91,7 +95,7 @@ func (u *UDP) generateHeader() [24]byte {
 	binary.BigEndian.PutUint16(b[off:], u.Seq)
 	off += 2
 
-	binary.BigEndian.PutUint32(b[off:], uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(b[off:], u.TS)
 	off += 4
 
 	binary.BigEndian.PutUint32(b[off:], u.SSRC)

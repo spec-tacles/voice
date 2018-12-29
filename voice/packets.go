@@ -3,7 +3,6 @@ package voice
 import (
 	"encoding/json"
 	"net"
-	"time"
 )
 
 // Packet OP codes
@@ -36,8 +35,8 @@ type ReceivablePacket struct {
 	Data json.RawMessage `json:"d"`
 }
 
-// IdentifyPayload represents a voice identify payload
-type IdentifyPayload struct {
+// Identify represents a voice identify payload
+type Identify struct {
 	ServerID  uint64 `json:"server_id,string"`
 	UserID    uint64 `json:"user_id,string"`
 	SessionID string `json:"session_id"`
@@ -47,7 +46,7 @@ type IdentifyPayload struct {
 // SelectProtocolPayload represents a select protocol payload
 type SelectProtocolPayload struct {
 	Protocol string             `json:"protocol"`
-	Data     SelectProtocolData `json:"mode"`
+	Data     SelectProtocolData `json:"data"`
 }
 
 // SelectProtocolData represents the data in a select protocol payload
@@ -59,16 +58,16 @@ type SelectProtocolData struct {
 
 // ReadyPayload represents a voice ready payload
 type ReadyPayload struct {
-	SSRC              uint32        `json:"ssrc"`
-	IP                net.IP        `json:"ip"`
-	Port              uint16        `json:"port"`
-	Modes             []string      `json:"modes"`
-	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
+	SSRC              uint32   `json:"ssrc"`
+	IP                net.IP   `json:"ip"`
+	Port              uint16   `json:"port"`
+	Modes             []string `json:"modes"`
+	HeartbeatInterval int      `json:"heartbeat_interval"`
 }
 
 // HelloPayload represents a voice hello payload
 type HelloPayload struct {
-	HeartbeatInterval time.Duration `json:"heartbeat_interval"`
+	HeartbeatInterval float64 `json:"heartbeat_interval"`
 }
 
 // HeartbeatPayload represents a voice heartbeat payload

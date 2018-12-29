@@ -2,7 +2,6 @@ package voice
 
 import (
 	"encoding/json"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -11,30 +10,28 @@ import (
 
 // Connection represents a voice WebSocket connection
 type Connection struct {
+	*Identify
 	ws  *websocket.Conn
 	mux sync.RWMutex
 
-	UDP       *UDP
-	ServerID  uint64
-	UserID    uint64
-	SessionID string
-	Token     string
+	UDP *UDP
 
-	SSRC              uint32
-	HeartbeatInterval time.Duration
-	HeartbeatAcked    bool
+	SSRC            uint32
+	heartbeatTicker *time.Ticker
+	heartbeatAcked  bool
 }
 
 // New makes a new connection
 func New() *Connection {
 	return &Connection{
-		mux: sync.RWMutex{},
-		UDP: &UDP{},
+		mux:            sync.RWMutex{},
+		UDP:            &UDP{},
+		heartbeatAcked: true,
 	}
 }
 
 // Connect establishes a connection to the Discord voice servers
-func (c *Connection) Connect(endpoint string, payload *IdentifyPayload) error {
+func (c *Connection) Connect(endpoint string, identify *Identify) error {
 	conn, _, err := websocket.DefaultDialer.Dial(endpoint, nil)
 	if err != nil {
 		return err
@@ -42,47 +39,19 @@ func (c *Connection) Connect(endpoint string, payload *IdentifyPayload) error {
 
 	conn.SetCloseHandler(c.closeHandler)
 	c.ws = conn
+	c.Identify = identify
 	go c.listen()
 
-	return c.Identify(payload)
+	return nil
 }
 
-// Identify identifies a new session with the voice gateway. Attempts to resume before identifying.
-func (c *Connection) Identify(payload *IdentifyPayload) error {
-	if c.SessionID != "" {
-		return c.Resume()
-	}
-
-	if payload == nil {
-		payload = &IdentifyPayload{
-			ServerID:  c.ServerID,
-			UserID:    c.UserID,
-			SessionID: c.SessionID,
-			Token:     c.Token,
-		}
-	} else {
-		c.ServerID = payload.ServerID
-		c.UserID = payload.UserID
-		c.SessionID = payload.SessionID
-		c.Token = payload.Token
-	}
-
-	return c.Send(OpIdentify, payload)
-}
-
-// Heartbeat sends a heartbeat to the voice server
-func (c *Connection) Heartbeat() error {
-	if !c.HeartbeatAcked {
+func (c *Connection) heartbeat() error {
+	if !c.heartbeatAcked {
 		return c.Reconnect()
 	}
 
-	c.HeartbeatAcked = false
-	return c.Send(OpHeartbeat, HeartbeatPayload(rand.Int()))
-}
-
-// SelectProtocol sends a select protocol packet to the voice server
-func (c *Connection) SelectProtocol(payload *SelectProtocolPayload) error {
-	return c.Send(OpSelectProtocol, payload)
+	c.heartbeatAcked = false
+	return c.Send(OpHeartbeat, HeartbeatPayload(time.Now().Unix()))
 }
 
 // SetSpeaking sets the speaking status
@@ -112,6 +81,18 @@ func (c *Connection) Send(op int, d interface{}) error {
 		OP:   op,
 		Data: d,
 	})
+}
+
+// Close closes the WebSocket connection with the (optionally) provided code and text
+func (c *Connection) Close(code int, text string) (err error) {
+	if code != 0 {
+		msg := websocket.FormatCloseMessage(code, text)
+		if err = c.ws.WriteMessage(websocket.CloseMessage, msg); err != nil {
+			return
+		}
+	}
+
+	return c.ws.Close()
 }
 
 // Reconnect to the gateway
@@ -147,7 +128,7 @@ func (c *Connection) listen() {
 			c.UDP.Connect(pk.SSRC, pk.IP, pk.Port)
 			ip, port, _ := c.UDP.DiscoverIP()
 
-			c.SelectProtocol(&SelectProtocolPayload{
+			c.Send(OpSelectProtocol, &SelectProtocolPayload{
 				Protocol: "udp",
 				Data: SelectProtocolData{
 					Address: ip,
@@ -162,12 +143,10 @@ func (c *Connection) listen() {
 				return
 			}
 
-			c.HeartbeatInterval = time.Duration(float64(pk.HeartbeatInterval) * .75)
-			go c.heartbeater()
-		case OpHeartbeat:
-			c.Heartbeat()
+			go c.heartbeater(time.Duration(pk.HeartbeatInterval*.75) * time.Millisecond)
+			c.Send(OpIdentify, c.Identify)
 		case OpHeartbeatAck:
-			c.HeartbeatAcked = true
+			c.heartbeatAcked = true
 		case OpSessionDescription:
 			pk := &SessionDescriptionPayload{}
 			err = json.Unmarshal(rp.Data, pk)
@@ -180,16 +159,19 @@ func (c *Connection) listen() {
 	}
 }
 
-func (c *Connection) heartbeater() {
-	ticker := time.NewTicker(c.HeartbeatInterval)
-	defer ticker.Stop()
+func (c *Connection) heartbeater(d time.Duration) {
+	c.heartbeatTicker = time.NewTicker(d)
 
-	for range ticker.C {
-		c.Heartbeat()
+	for range c.heartbeatTicker.C {
+		c.heartbeat()
 	}
 }
 
 func (c *Connection) closeHandler(code int, text string) error {
+	if c.heartbeatTicker != nil {
+		c.heartbeatTicker.Stop()
+	}
+
 	switch code {
 	case 4006, 4009:
 		c.SessionID = ""
