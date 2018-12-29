@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net"
 
 	"golang.org/x/crypto/nacl/secretbox"
@@ -77,9 +76,7 @@ func (u *UDP) Write(b []byte) (int, error) {
 
 	u.Seq++
 	u.TS += FrameSize
-	sealed := secretbox.Seal(h[:12], b, &h, &u.SecretKey)
-	fmt.Println(len(sealed))
-	return u.conn.Write(sealed)
+	return u.conn.Write(secretbox.Seal(h[:12], b, &h, &u.SecretKey))
 }
 
 func (u *UDP) generateHeader() [24]byte {
