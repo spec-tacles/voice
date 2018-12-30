@@ -262,8 +262,6 @@ func runCommand(name string, args []string, s *discordgo.Session, m *discordgo.M
 
 		go func() {
 			buf := make([]int16, voice.FrameSize*voice.Channels)
-			t := time.NewTicker(time.Millisecond * voice.FrameDuration)
-
 			for {
 				err = binary.Read(out, binary.LittleEndian, buf)
 				if err != nil {
@@ -276,8 +274,6 @@ func runCommand(name string, args []string, s *discordgo.Session, m *discordgo.M
 					errChan <- err
 					return
 				}
-
-				<-t.C
 
 				if _, err = c.voice.UDP.Write(opus); err != nil {
 					errChan <- err

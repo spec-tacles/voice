@@ -25,7 +25,7 @@ type Connection struct {
 func New() *Connection {
 	return &Connection{
 		mux:            sync.RWMutex{},
-		UDP:            &UDP{},
+		UDP:            NewUDP(),
 		heartbeatAcked: true,
 	}
 }
@@ -83,7 +83,8 @@ func (c *Connection) Send(op int, d interface{}) error {
 	})
 }
 
-// Close closes the WebSocket connection with the (optionally) provided code and text
+// Close closes the WebSocket connection with the (optionally) provided code and text. Also cleans
+// up the UDP connection. Both must be re-established after calling this.
 func (c *Connection) Close(code int, text string) (err error) {
 	if code != 0 {
 		msg := websocket.FormatCloseMessage(code, text)
@@ -92,6 +93,7 @@ func (c *Connection) Close(code int, text string) (err error) {
 		}
 	}
 
+	c.UDP.Close()
 	return c.ws.Close()
 }
 

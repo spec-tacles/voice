@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"time"
 
 	"golang.org/x/crypto/nacl/secretbox"
 )
@@ -15,17 +16,25 @@ const (
 	FrameSize     = 960
 	SampleRate    = 48000
 	MaxBytes      = FrameSize * 4
-	FrameDuration = FrameSize / (SampleRate / 1000)
+	FrameDuration = (FrameSize / (SampleRate / 1000)) * time.Millisecond
 )
 
 // UDP represents a UDP connection
 type UDP struct {
 	conn *net.UDPConn
 
-	SecretKey [32]byte
-	Seq       uint16
-	TS        uint32
-	SSRC      uint32
+	FrameTicker *time.Ticker
+	SecretKey   [32]byte
+	Seq         uint16
+	TS          uint32
+	SSRC        uint32
+}
+
+// NewUDP makes a new UDP connection
+func NewUDP() *UDP {
+	return &UDP{
+		FrameTicker: time.NewTicker(FrameDuration),
+	}
 }
 
 // Connect establishes a UDP connection
@@ -71,7 +80,14 @@ func (u *UDP) DiscoverIP() (ip net.IP, port uint16, err error) {
 	return
 }
 
+// Close closes this UDP connection
+func (u *UDP) Close() {
+	u.FrameTicker.Stop()
+	u.conn.Close()
+}
+
 func (u *UDP) Write(b []byte) (int, error) {
+	<-u.FrameTicker.C
 	h := u.generateHeader()
 
 	u.Seq++

@@ -5,7 +5,11 @@ github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoA
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/spec-tacles/voice v0.0.0-20181228192942-213576699a1b h1:7jcRZJo2Q0MMhcM9CckdXTYBfx72VCua6NaQeaRcEuI=
 github.com/spec-tacles/voice v0.0.0-20181228192942-213576699a1b/go.mod h1:xGHPm9Wb2vdxRYffnsoV025UrME/T8hcReJS6kSQURc=
+github.com/spec-tacles/voice v0.0.0-20181229074620-c941d3693310 h1:MinnxeT3yGgoJEuPg7WJ+wFPzWJTwlxWgERs2O9fNQw=
+github.com/spec-tacles/voice v0.0.0-20181229074620-c941d3693310/go.mod h1:xGHPm9Wb2vdxRYffnsoV025UrME/T8hcReJS6kSQURc=
+github.com/spf13/cobra v0.0.3 h1:ZlrZ4XsMRm04Fr5pSFxBgfND2EBVa1nLpiy1stUsX/8=
 github.com/spf13/cobra v0.0.3/go.mod h1:1l0Ry5zgKvJasoi3XT1TypsSe7PqH0Sj9dhYf7v3XqQ=
+github.com/spf13/pflag v1.0.3 h1:zPAT6CGy6wXeQ7NtTnaTerfKOsV6V6F8agHXFiazDkg=
 github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=
 golang.org/x/crypto v0.0.0-20181030102418-4d3f4d9ffa16 h1:y6ce7gCWtnH+m3dCjzQ1PCuwl28DDIc3VNnvY29DlIA=
 golang.org/x/crypto v0.0.0-20181030102418-4d3f4d9ffa16/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
