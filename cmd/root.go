@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/gorilla/websocket"
 	"github.com/spec-tacles/voice/voice"
 	"github.com/spf13/cobra"
 )
@@ -31,10 +32,19 @@ var rootCmd = &cobra.Command{
 			Token:     *token,
 		})
 
-		_, err := io.Copy(v.UDP, os.Stdin)
+		err := v.SetSpeaking(true, 0)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		_, err = io.Copy(v, os.Stdin)
 		if err != nil {
 			fmt.Println(err)
 		}
+
+		v.SendCloseFrame(websocket.CloseNormalClosure, "")
+		v.Close()
 	},
 }
 

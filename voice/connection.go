@@ -12,11 +12,11 @@ import (
 type Connection struct {
 	*Identify
 	ws  *websocket.Conn
+	udp *UDP
 	mux sync.RWMutex
 
-	UDP *UDP
-
 	SSRC            uint32
+	Speaking        bool
 	heartbeatTicker *time.Ticker
 	heartbeatAcked  bool
 }
@@ -25,7 +25,7 @@ type Connection struct {
 func New() *Connection {
 	return &Connection{
 		mux:            sync.RWMutex{},
-		UDP:            NewUDP(),
+		udp:            NewUDP(),
 		heartbeatAcked: true,
 	}
 }
@@ -83,18 +83,16 @@ func (c *Connection) Send(op int, d interface{}) error {
 	})
 }
 
-// Close closes the WebSocket connection with the (optionally) provided code and text. Also cleans
-// up the UDP connection. Both must be re-established after calling this.
-func (c *Connection) Close(code int, text string) (err error) {
-	if code != 0 {
-		msg := websocket.FormatCloseMessage(code, text)
-		if err = c.ws.WriteMessage(websocket.CloseMessage, msg); err != nil {
-			return
-		}
-	}
-
-	c.UDP.Close()
+// Close closes the WebSocket and UDP connections
+func (c *Connection) Close() error {
+	c.udp.Close()
 	return c.ws.Close()
+}
+
+// SendCloseFrame sends a close frame to the websocket
+func (c *Connection) SendCloseFrame(closeCode int, text string) error {
+	pk := websocket.FormatCloseMessage(closeCode, text)
+	return c.ws.WriteMessage(websocket.CloseMessage, pk)
 }
 
 // Reconnect to the gateway
@@ -106,6 +104,11 @@ func (c *Connection) Reconnect() error {
 	}
 
 	return c.Connect(addr.String(), nil)
+}
+
+// Write writes Opus data to the voice connection. Not safe for concurrent use.
+func (c *Connection) Write(d []byte) (int, error) {
+	return c.udp.Write(d)
 }
 
 func (c *Connection) listen() {
@@ -127,8 +130,8 @@ func (c *Connection) listen() {
 			}
 
 			c.SSRC = pk.SSRC
-			c.UDP.Connect(pk.SSRC, pk.IP, pk.Port)
-			ip, port, _ := c.UDP.DiscoverIP()
+			c.udp.Connect(pk.SSRC, pk.IP, pk.Port)
+			ip, port, _ := c.udp.DiscoverIP()
 
 			c.Send(OpSelectProtocol, &SelectProtocolPayload{
 				Protocol: "udp",
@@ -156,7 +159,7 @@ func (c *Connection) listen() {
 				return
 			}
 
-			c.UDP.SecretKey = pk.SecretKey
+			c.udp.SecretKey = pk.SecretKey
 		}
 	}
 }

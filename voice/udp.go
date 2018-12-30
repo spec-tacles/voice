@@ -81,9 +81,10 @@ func (u *UDP) DiscoverIP() (ip net.IP, port uint16, err error) {
 }
 
 // Close closes this UDP connection
-func (u *UDP) Close() {
+func (u *UDP) Close() error {
 	u.FrameTicker.Stop()
 	u.conn.Close()
+	return nil
 }
 
 func (u *UDP) Write(b []byte) (int, error) {

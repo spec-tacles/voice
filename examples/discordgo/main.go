@@ -275,7 +275,7 @@ func runCommand(name string, args []string, s *discordgo.Session, m *discordgo.M
 					return
 				}
 
-				if _, err = c.voice.UDP.Write(opus); err != nil {
+				if _, err = c.voice.Write(opus); err != nil {
 					errChan <- err
 					return
 				}
@@ -306,7 +306,8 @@ func runCommand(name string, args []string, s *discordgo.Session, m *discordgo.M
 		}
 
 		conns.Delete(m.GuildID)
-		c.voice.Close(1000, "")
+		c.voice.SendCloseFrame(1000, "")
+		c.voice.Close()
 		s.ChannelVoiceJoinManual(m.ChannelID, "", false, false)
 	}
 
