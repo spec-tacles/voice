@@ -40,10 +40,10 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.Flags().StringVar(endpoint, "endpoint", "", "voice endpoint to connect to (VOICE_SERVER_UPDATE)")
-	rootCmd.Flags().Uint64Var(serverID, "server_id", 0, "guild ID of this voice connection (VOICE_STATE_UPDATE)")
+	rootCmd.Flags().Uint64Var(serverID, "server_id", 0, "guild ID of this voice connection (VOICE_STATE_UPDATE/VOICE_SERVER_UPDATE)")
 	rootCmd.Flags().Uint64Var(userID, "user_id", 0, "user ID of this voice connection (VOICE_STATE_UPDATE)")
 	rootCmd.Flags().StringVar(sessionID, "session_id", "", "session ID of this voice connection (VOICE_STATE_UPDATE)")
-	rootCmd.Flags().StringVar(token, "token", "", "voice session token (VOICE_STATE_UPDATE)")
+	rootCmd.Flags().StringVar(token, "token", "", "voice session token (VOICE_SERVER_UPDATE)")
 	rootCmd.MarkFlagRequired("endpoint")
 	rootCmd.MarkFlagRequired("server_id")
 	rootCmd.MarkFlagRequired("user_id")
