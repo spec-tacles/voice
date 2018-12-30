@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	endpoint  = new(string)
-	serverID  = new(uint64)
-	userID    = new(uint64)
-	sessionID = new(string)
-	token     = new(string)
+	endpoint  *string
+	serverID  *uint64
+	userID    *uint64
+	sessionID *string
+	token     *string
 )
 
 var rootCmd = &cobra.Command{
@@ -43,10 +43,12 @@ func init() {
 	rootCmd.Flags().Uint64Var(serverID, "server_id", 0, "guild ID of this voice connection (VOICE_STATE_UPDATE)")
 	rootCmd.Flags().Uint64Var(userID, "user_id", 0, "user ID of this voice connection (VOICE_STATE_UPDATE)")
 	rootCmd.Flags().StringVar(sessionID, "session_id", "", "session ID of this voice connection (VOICE_STATE_UPDATE)")
+	rootCmd.Flags().StringVar(token, "token", "", "voice session token (VOICE_STATE_UPDATE)")
 	rootCmd.MarkFlagRequired("endpoint")
 	rootCmd.MarkFlagRequired("server_id")
 	rootCmd.MarkFlagRequired("user_id")
 	rootCmd.MarkFlagRequired("session_id")
+	rootCmd.MarkFlagRequired("token")
 }
 
 // Execute the CLI app
