@@ -34,7 +34,7 @@ func New() *Connection {
 		heartbeatAcked: true,
 		frameTicker:    time.NewTicker(FrameDuration),
 		packets:        make(chan []byte, 1),
-		errors:         make(chan error, 1),
+		errors:         make(chan error),
 	}
 }
 
