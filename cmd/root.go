@@ -32,13 +32,7 @@ var rootCmd = &cobra.Command{
 			Token:     *token,
 		})
 
-		err := v.SetSpeaking(true, 0)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		_, err = io.Copy(v, os.Stdin)
+		_, err := io.Copy(v, os.Stdin)
 		if err != nil {
 			fmt.Println(err)
 		}

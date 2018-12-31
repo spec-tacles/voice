@@ -19,22 +19,17 @@ const (
 	FrameDuration = (FrameSize / (SampleRate / 1000)) * time.Millisecond
 )
 
+// Silence is an Opus packet of silence
+var Silence = [3]byte{0xF8, 0xFF, 0xFE}
+
 // UDP represents a UDP connection
 type UDP struct {
 	conn *net.UDPConn
 
-	FrameTicker *time.Ticker
-	SecretKey   [32]byte
-	Seq         uint16
-	TS          uint32
-	SSRC        uint32
-}
-
-// NewUDP makes a new UDP connection
-func NewUDP() *UDP {
-	return &UDP{
-		FrameTicker: time.NewTicker(FrameDuration),
-	}
+	SecretKey [32]byte
+	Seq       uint16
+	TS        uint32
+	SSRC      uint32
 }
 
 // Connect establishes a UDP connection
@@ -82,18 +77,15 @@ func (u *UDP) DiscoverIP() (ip net.IP, port uint16, err error) {
 
 // Close closes this UDP connection
 func (u *UDP) Close() error {
-	u.FrameTicker.Stop()
-	u.conn.Close()
-	return nil
+	return u.conn.Close()
 }
 
-func (u *UDP) Write(b []byte) (int, error) {
-	<-u.FrameTicker.C
+func (u *UDP) Write(d []byte) (int, error) {
 	h := u.generateHeader()
 
 	u.Seq++
 	u.TS += FrameSize
-	return u.conn.Write(secretbox.Seal(h[:12], b, &h, &u.SecretKey))
+	return u.conn.Write(secretbox.Seal(h[:12], d, &h, &u.SecretKey))
 }
 
 func (u *UDP) generateHeader() [24]byte {

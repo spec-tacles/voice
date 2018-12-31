@@ -8,17 +8,17 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime/debug"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"layeh.com/gopus"
-
-	"github.com/spec-tacles/voice/voice"
-
 	"github.com/bwmarrin/discordgo"
+	"github.com/spec-tacles/voice/voice"
+	"layeh.com/gopus"
 )
 
 type conn struct {
@@ -65,9 +65,20 @@ var (
 )
 
 func main() {
+	cpuprof := flag.String("cpuprofile", "", "write cpu profile to file")
 	t := flag.String("t", "", "The bot's token")
 	p := flag.String("p", "yarn", "The bot's prefix")
 	flag.Parse()
+
+	if *cpuprof != "" {
+		f, err := os.Create(*cpuprof)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	prefix = *p
 
@@ -92,7 +103,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	select {}
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	<-sig
+
+	fmt.Println("exiting program")
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -249,11 +264,6 @@ func runCommand(name string, args []string, s *discordgo.Session, m *discordgo.M
 		}
 
 		opusEncoder, err := gopus.NewEncoder(voice.SampleRate, voice.Channels, gopus.Audio)
-		if err != nil {
-			return err
-		}
-
-		err = c.voice.SetSpeaking(true, 0)
 		if err != nil {
 			return err
 		}

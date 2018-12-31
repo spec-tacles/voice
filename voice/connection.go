@@ -13,20 +13,28 @@ type Connection struct {
 	*Identify
 	ws  *websocket.Conn
 	udp *UDP
-	mux sync.RWMutex
+	mux sync.Mutex
 
-	SSRC            uint32
-	Speaking        bool
+	SSRC     uint32
+	Speaking bool
+
 	heartbeatTicker *time.Ticker
 	heartbeatAcked  bool
+	sending         bool
+	frameTicker     *time.Ticker
+	packets         chan []byte
+	errors          chan error
 }
 
 // New makes a new connection
 func New() *Connection {
 	return &Connection{
-		mux:            sync.RWMutex{},
-		udp:            NewUDP(),
+		mux:            sync.Mutex{},
+		udp:            &UDP{},
 		heartbeatAcked: true,
+		frameTicker:    time.NewTicker(FrameDuration),
+		packets:        make(chan []byte, 1),
+		errors:         make(chan error, 1),
 	}
 }
 
@@ -106,9 +114,50 @@ func (c *Connection) Reconnect() error {
 	return c.Connect(addr.String(), nil)
 }
 
-// Write writes Opus data to the voice connection. Not safe for concurrent use.
+// Write writes Opus data to the voice connection. If used concurrently, some errors may not be
+// associated with the packet that caused them.
 func (c *Connection) Write(d []byte) (int, error) {
-	return c.udp.Write(d)
+	c.packets <- d
+	if !c.sending {
+		go c.sendPackets()
+	}
+
+	return len(d), <-c.errors
+}
+
+func (c *Connection) setSending(sending bool) {
+	c.sending = sending
+}
+
+func (c *Connection) sendPackets() {
+	if c.sending {
+		return
+	}
+
+	c.setSending(true)
+	defer c.setSending(false)
+
+	c.SetSpeaking(true, 0)
+	defer c.SetSpeaking(false, 0)
+
+	silenceFrames := 0
+	for range c.frameTicker.C {
+		var pk []byte
+		select {
+		case pk = <-c.packets:
+			silenceFrames = 0
+		default:
+			if silenceFrames >= 5 {
+				return
+			}
+
+			pk = Silence[:]
+			silenceFrames++
+		}
+
+		_, err := c.udp.Write(pk)
+		c.errors <- err
+	}
 }
 
 func (c *Connection) listen() {
@@ -150,7 +199,7 @@ func (c *Connection) listen() {
 
 			go c.heartbeater(time.Duration(pk.HeartbeatInterval*.75) * time.Millisecond)
 			c.Send(OpIdentify, c.Identify)
-		case OpHeartbeatAck:
+		case OpHeartbeatAck, OpHeartbeat: // Discord sends OP heartbeat in response to heartbeat payloads?
 			c.heartbeatAcked = true
 		case OpSessionDescription:
 			pk := &SessionDescriptionPayload{}
